@@ -1,0 +1,15 @@
+@import "tailwindcss";
+@layer base {
+  :root{--background:#F5F0E8;--surface:#EDE8DC;--gold:#B8963A;--gold-light:#C9AA67;--navy:#071B23;--text:#171717;--muted:#7A6A52;--border:#DDD5C4}
+  html{scroll-behavior:smooth;scroll-padding-top:100px}
+  body{font-family:'IBM Plex Sans Arabic',system-ui,sans-serif;background:var(--background);color:var(--text);overflow-x:hidden}
+  button,a{cursor:pointer}
+  ::selection{background:#C9AA67;color:#071B23}
+}
+@layer components{
+ .eyebrow{display:inline-block;color:#B8963A;font-size:.86rem;font-weight:700;letter-spacing:.01em}
+ .icon-box{width:42px;height:42px;border-radius:12px;background:#C9AA6726;color:#9A7934;display:inline-flex;align-items:center;justify-content:center;flex:none}
+}
+::-webkit-scrollbar{width:8px}::-webkit-scrollbar-track{background:#EDE8DC}::-webkit-scrollbar-thumb{background:#C9AA67;border-radius:10px}
+.font-amiri{font-family:'Amiri',serif}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto!important}*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}

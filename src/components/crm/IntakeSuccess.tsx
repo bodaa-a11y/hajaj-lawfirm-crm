@@ -192,7 +192,21 @@ export const IntakeSuccess: React.FC<Props> = ({
                 <span className="text-gray-500">الخدمة المطلوبة:</span>
                 <span className="font-bold text-[#B8963A]">{application.serviceType}</span>
               </div>
-              <div className="flex justify-between py-1">
+              <div className="flex justify-between py-1 border-b border-gray-200 items-center">
+                <span className="text-gray-500">حفظ السيرفر السحابي:</span>
+                {application.syncedToServer !== false ? (
+                  <span className="inline-flex items-center gap-1 text-emerald-700 font-bold text-xs bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                    <Check className="w-3.5 h-3.5 text-emerald-600 stroke-[3]" />
+                    <span>تم التوثيق في قاعدة بيانات الشركة</span>
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-amber-700 font-bold text-xs bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
+                    <Clock className="w-3.5 h-3.5" />
+                    <span>محفوظ محلياً وجاري المزامنة التلقائية</span>
+                  </span>
+                )}
+              </div>
+              <div className="flex justify-between py-1 items-center">
                 <span className="text-gray-500">الحالة:</span>
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 font-medium text-xs border border-blue-200">
                   <Clock className="w-3 h-3" />

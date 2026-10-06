@@ -120,8 +120,8 @@ switch ($action) {
             exit;
         }
 
-        $stmt = $conn->prepare("SELECT * FROM applications WHERE id = :id OR orderNumber = :id");
-        $stmt->execute(['id' => $appId]);
+        $stmt = $conn->prepare("SELECT * FROM applications WHERE id = :pid1 OR orderNumber = :pid2");
+        $stmt->execute(['pid1' => $appId, 'pid2' => $appId]);
         $existing = $stmt->fetch();
 
         if (!$existing) {
@@ -166,22 +166,29 @@ switch ($action) {
             ];
         }
 
+        $appointment = $existing['appointment'];
+        if (isset($input['appointment'])) {
+            $appointment = is_array($input['appointment']) ? json_encode($input['appointment']) : $input['appointment'];
+        }
+
         $updateStmt = $conn->prepare("
             UPDATE applications SET
                 status = :status,
                 assignedLawyerId = :assignedLawyerId,
                 timeline = :timeline,
                 notes = :notes,
+                appointment = :appointment,
                 updatedAt = :updatedAt
-            WHERE id = :id
+            WHERE id = :targetId
         ");
 
         $updateStmt->execute([
-            'id' => $existing['id'],
+            'targetId' => $existing['id'],
             'status' => $input['status'] ?? $existing['status'],
             'assignedLawyerId' => $input['assignedLawyerId'] ?? $existing['assignedLawyerId'],
             'timeline' => json_encode($timeline),
             'notes' => json_encode($notes),
+            'appointment' => $appointment,
             'updatedAt' => $now
         ]);
 
@@ -193,8 +200,8 @@ switch ($action) {
     // ----------------------------------------------------
     case 'delete_application':
         $appId = $input['id'] ?? ($_GET['id'] ?? '');
-        $stmt = $conn->prepare("DELETE FROM applications WHERE id = :id OR orderNumber = :id");
-        $stmt->execute(['id' => $appId]);
+        $stmt = $conn->prepare("DELETE FROM applications WHERE id = :did1 OR orderNumber = :did2");
+        $stmt->execute(['did1' => $appId, 'did2' => $appId]);
         echo json_encode(['success' => true]);
         break;
 
@@ -203,8 +210,8 @@ switch ($action) {
     // ----------------------------------------------------
     case 'get_application':
         $query = strtoupper(trim($_GET['order'] ?? ''));
-        $stmt = $conn->prepare("SELECT * FROM applications WHERE orderNumber = :ord OR id = :ord");
-        $stmt->execute(['ord' => $query]);
+        $stmt = $conn->prepare("SELECT * FROM applications WHERE orderNumber = :qord1 OR id = :qord2");
+        $stmt->execute(['qord1' => $query, 'qord2' => $query]);
         $row = $stmt->fetch();
 
         if ($row) {
@@ -216,6 +223,19 @@ switch ($action) {
         } else {
             echo json_encode(['success' => false, 'error' => 'Not found']);
         }
+        break;
+
+    // ----------------------------------------------------
+    // 5b. HEALTH CHECK
+    // ----------------------------------------------------
+    case 'health':
+        echo json_encode([
+            'success' => true,
+            'status' => 'healthy',
+            'timestamp' => date('c'),
+            'db' => $db['type'],
+            'uploadsWritable' => is_writable($UPLOADS_DIR)
+        ]);
         break;
 
     // ----------------------------------------------------
@@ -274,20 +294,30 @@ switch ($action) {
     case 'upload_file':
         global $UPLOADS_DIR;
         if (!isset($_FILES['file'])) {
-            echo json_encode(['success' => false, 'error' => 'No file uploaded']);
+            echo json_encode(['success' => false, 'error' => 'لم يتم إرسال أي ملف']);
             exit;
         }
 
         $file = $_FILES['file'];
-        $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-        $allowed = ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'];
-
-        if (!in_array($ext, $allowed)) {
-            echo json_encode(['success' => false, 'error' => 'Invalid file extension']);
+        if ($file['error'] !== UPLOAD_ERR_OK) {
+            echo json_encode(['success' => false, 'error' => 'خطأ في استقبال الملف: ' . $file['error']]);
             exit;
         }
 
-        $filename = 'doc_' . time() . '_' . rand(100, 999) . '.' . $ext;
+        $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+        $allowed = ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png', 'webp'];
+
+        if (!in_array($ext, $allowed)) {
+            echo json_encode(['success' => false, 'error' => 'نوع الملف غير مدعوم. المسموح: PDF, Word, والصور']);
+            exit;
+        }
+
+        if ($file['size'] > 25 * 1024 * 1024) {
+            echo json_encode(['success' => false, 'error' => 'حجم الملف يتجاوز 25 ميجابايت']);
+            exit;
+        }
+
+        $filename = 'doc_' . time() . '_' . rand(1000, 9999) . '.' . $ext;
         $targetPath = $UPLOADS_DIR . '/' . $filename;
 
         if (move_uploaded_file($file['tmp_name'], $targetPath)) {
@@ -295,7 +325,7 @@ switch ($action) {
             echo json_encode([
                 'success' => true,
                 'data' => [
-                    'id' => 'att-' . time(),
+                    'id' => 'att-' . time() . '-' . rand(100, 999),
                     'name' => $file['name'],
                     'size' => $file['size'],
                     'type' => $file['type'],
@@ -304,7 +334,8 @@ switch ($action) {
                 ]
             ]);
         } else {
-            echo json_encode(['success' => false, 'error' => 'Upload failed']);
+            logApiError('Upload move failed', ['target' => $targetPath, 'error' => error_get_last()]);
+            echo json_encode(['success' => false, 'error' => 'فشل حفظ الملف على السيرفر، يرجى التحقق من أذونات مجلد uploads']);
         }
         break;
 

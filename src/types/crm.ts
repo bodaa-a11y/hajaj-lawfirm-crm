@@ -117,6 +117,8 @@ export interface Application {
   updatedAt: string;
   firstResponseAt?: string;
   slaBreached?: boolean;
+  syncedToServer?: boolean;
+  pendingSync?: boolean;
 }
 
 export interface SystemSettings {

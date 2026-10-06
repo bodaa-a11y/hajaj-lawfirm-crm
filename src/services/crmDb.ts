@@ -114,15 +114,90 @@ class CrmDatabaseService {
     }
   }
 
-  // Sync with Hostinger backend if available
+  // Health check
+  async checkApiHealth(): Promise<{ ok: boolean; db?: string; uploadsWritable?: boolean }> {
+    try {
+      const res = await fetch('/api/index.php?action=health');
+      if (res.ok) {
+        const data = await res.json();
+        return { ok: data.success === true, db: data.db, uploadsWritable: data.uploadsWritable };
+      }
+    } catch {
+      // Fallback
+    }
+    return { ok: false };
+  }
+
+  // Real File Upload to Hostinger
+  async uploadFile(file: File): Promise<FileAttachment | null> {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const res = await fetch('/api/index.php?action=upload_file', {
+        method: 'POST',
+        body: formData
+      });
+
+      if (res.ok) {
+        const result = await res.json();
+        if (result.success && result.data) {
+          return result.data as FileAttachment;
+        }
+      }
+    } catch (err) {
+      console.error('File upload failed:', err);
+    }
+    return null;
+  }
+
+  // Sync with Hostinger backend with retry for pending submissions
   async syncFromHostinger(): Promise<Application[]> {
     try {
+      // 1. Check for pending local submissions to push first
+      const localApps = this.getApplications();
+      const pendingApps = localApps.filter(a => a.pendingSync === true);
+
+      for (const pending of pendingApps) {
+        try {
+          const pushRes = await fetch('/api/index.php?action=create_application', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(pending)
+          });
+          if (pushRes.ok) {
+            const pushData = await pushRes.json();
+            if (pushData.success) {
+              pending.pendingSync = false;
+              pending.syncedToServer = true;
+            }
+          }
+        } catch {
+          // Keep as pending
+        }
+      }
+
+      // 2. Fetch latest from server
       const res = await fetch('/api/index.php?action=get_applications');
       if (res.ok) {
         const result = await res.json();
         if (result.success && Array.isArray(result.data)) {
-          this.saveApplications(result.data);
-          return result.data;
+          const serverApps: Application[] = result.data.map((app: Application) => ({
+            ...app,
+            syncedToServer: true,
+            pendingSync: false
+          }));
+
+          // Merge: Keep any unsynced local drafts that aren't on server yet
+          const finalApps = [...serverApps];
+          for (const local of localApps) {
+            if (local.pendingSync && !finalApps.some(s => s.id === local.id || s.orderNumber === local.orderNumber)) {
+              finalApps.unshift(local);
+            }
+          }
+
+          this.saveApplications(finalApps);
+          return finalApps;
         }
       }
     } catch (err) {
@@ -139,15 +214,20 @@ class CrmDatabaseService {
       if (res.ok) {
         const result = await res.json();
         if (result.success && result.data) {
+          const fetchedApp: Application = {
+            ...result.data,
+            syncedToServer: true,
+            pendingSync: false
+          };
           const apps = this.getApplications();
-          const idx = apps.findIndex(a => a.id === result.data.id || a.orderNumber.toUpperCase() === clean);
+          const idx = apps.findIndex(a => a.id === fetchedApp.id || a.orderNumber.toUpperCase() === clean);
           if (idx >= 0) {
-            apps[idx] = result.data;
+            apps[idx] = fetchedApp;
           } else {
-            apps.unshift(result.data);
+            apps.unshift(fetchedApp);
           }
           this.saveApplications(apps);
-          return result.data;
+          return fetchedApp;
         }
       }
     } catch (err) {
@@ -170,6 +250,7 @@ class CrmDatabaseService {
     return apps.find(a => a.id === id || a.orderNumber.toUpperCase() === clean || a.orderNumber.replace('HJ-', '') === clean);
   }
 
+  // Synchronous local creator (with background async sync)
   createApplication(data: Omit<Application, 'id' | 'orderNumber' | 'createdAt' | 'updatedAt' | 'timeline' | 'notes'>): Application {
     const apps = this.getApplications();
     const orderNumSuffix = Math.floor(10000 + Math.random() * 90000);
@@ -195,13 +276,15 @@ class CrmDatabaseService {
       timeline: [initialTimeline],
       notes: [],
       createdAt: now,
-      updatedAt: now
+      updatedAt: now,
+      pendingSync: true,
+      syncedToServer: false
     };
 
     apps.unshift(newApp);
     this.saveApplications(apps);
 
-    // Asynchronously send to Hostinger API and ensure sync
+    // Asynchronously send to Hostinger API
     fetch('/api/index.php?action=create_application', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -213,7 +296,11 @@ class CrmDatabaseService {
           const currentApps = this.getApplications();
           const targetIndex = currentApps.findIndex(a => a.id === newId || a.orderNumber === newOrderNumber);
           if (targetIndex >= 0) {
-            currentApps[targetIndex] = result.data;
+            currentApps[targetIndex] = {
+              ...result.data,
+              syncedToServer: true,
+              pendingSync: false
+            };
             this.saveApplications(currentApps);
           }
         }
@@ -223,6 +310,64 @@ class CrmDatabaseService {
     });
 
     return newApp;
+  }
+
+  // Fully awaited async application submission
+  async createApplicationAsync(data: Omit<Application, 'id' | 'orderNumber' | 'createdAt' | 'updatedAt' | 'timeline' | 'notes'>): Promise<{ application: Application; serverSaved: boolean }> {
+    const apps = this.getApplications();
+    const orderNumSuffix = Math.floor(10000 + Math.random() * 90000);
+    const newOrderNumber = `HJ-${orderNumSuffix}`;
+    const newId = `app-${Date.now()}`;
+    const now = new Date().toISOString();
+
+    const initialTimeline: TimelineEvent = {
+      id: `tl-${Date.now()}`,
+      status: 'new',
+      title: 'تم استلام الطلب الجديد',
+      description: `تم تقديم الطلب بنجاح عبر استمارة الموقع`,
+      performedBy: 'النظام الآلي',
+      timestamp: now
+    };
+
+    const newApp: Application = {
+      ...data,
+      id: newId,
+      orderNumber: newOrderNumber,
+      status: 'new',
+      attachments: data.attachments || [],
+      timeline: [initialTimeline],
+      notes: [],
+      createdAt: now,
+      updatedAt: now,
+      pendingSync: true,
+      syncedToServer: false
+    };
+
+    let serverSaved = false;
+
+    try {
+      const res = await fetch('/api/index.php?action=create_application', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newApp)
+      });
+
+      if (res.ok) {
+        const result = await res.json();
+        if (result.success && result.data) {
+          newApp.syncedToServer = true;
+          newApp.pendingSync = false;
+          serverSaved = true;
+        }
+      }
+    } catch (err) {
+      console.warn('Direct server save failed, saved locally for auto-retry:', err);
+    }
+
+    apps.unshift(newApp);
+    this.saveApplications(apps);
+
+    return { application: newApp, serverSaved };
   }
 
   updateApplication(id: string, updates: Partial<Application>, performedBy = 'النظام'): Application | null {
@@ -414,11 +559,7 @@ class CrmDatabaseService {
 
   verifyPassword(password: string): boolean {
     const validPasswords = [
-      'HajajLaw#2026!Sec',
-      'Hajaj2026',
-      'HajajLaw@2026Secure!',
-      '123456',
-      'admin2026'
+      'HajajLaw#2026!Sec'
     ];
     return validPasswords.includes(password.trim());
   }

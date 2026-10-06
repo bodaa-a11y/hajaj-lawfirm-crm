@@ -58,21 +58,44 @@ export const ClientIntakeForm: React.FC<Props> = ({ onBackToHome, onNavigateToTr
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const settings = crmDb.getSettings();
+  const [isUploadingFiles, setIsUploadingFiles] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
-    if (!files) return;
+    if (!files || files.length === 0) return;
 
-    const newAttachments: FileAttachment[] = Array.from(files).map(file => ({
-      id: `att-${Date.now()}-${Math.random().toString(36).substring(7)}`,
-      name: file.name,
-      size: file.size,
-      type: file.type || 'document',
-      url: '#',
-      uploadedAt: new Date().toISOString()
-    }));
+    setIsUploadingFiles(true);
+    setUploadError(null);
 
-    setAttachments(prev => [...prev, ...newAttachments]);
+    const fileList = Array.from(files);
+    for (const file of fileList) {
+      if (file.size > 25 * 1024 * 1024) {
+        setUploadError(`الملف "${file.name}" يتجاوز الحد الأقصى (25 ميجابايت)`);
+        continue;
+      }
+
+      // Try upload to server
+      const uploaded = await crmDb.uploadFile(file);
+      if (uploaded) {
+        setAttachments(prev => [...prev, uploaded]);
+      } else {
+        // Fallback local representation if offline
+        const localAtt: FileAttachment = {
+          id: `att-${Date.now()}-${Math.random().toString(36).substring(7)}`,
+          name: file.name,
+          size: file.size,
+          type: file.type || 'document',
+          url: '#',
+          uploadedAt: new Date().toISOString()
+        };
+        setAttachments(prev => [...prev, localAtt]);
+      }
+    }
+
+    setIsUploadingFiles(false);
+    // Reset file input value
+    e.target.value = '';
   };
 
   const removeAttachment = (id: string) => {
@@ -120,40 +143,37 @@ export const ClientIntakeForm: React.FC<Props> = ({ onBackToHome, onNavigateToTr
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate()) {
-      // Scroll to first error
       window.scrollTo({ top: 120, behavior: 'smooth' });
       return;
     }
 
     setIsSubmitting(true);
 
-    setTimeout(() => {
-      try {
-        const created = crmDb.createApplication({
-          fullName: formData.fullName,
-          phone: formData.phone,
-          email: formData.email,
-          idNumber: formData.idNumber,
-          serviceType: formData.serviceType,
-          details: formData.details,
-          priority: formData.priority,
-          preferredContactMethod: formData.preferredContactMethod,
-          preferredContactTime: formData.preferredContactTime,
-          source: source,
-          status: 'new',
-          attachments: attachments
-        });
+    try {
+      const res = await crmDb.createApplicationAsync({
+        fullName: formData.fullName,
+        phone: formData.phone,
+        email: formData.email,
+        idNumber: formData.idNumber,
+        serviceType: formData.serviceType,
+        details: formData.details,
+        priority: formData.priority,
+        preferredContactMethod: formData.preferredContactMethod,
+        preferredContactTime: formData.preferredContactTime,
+        source: source,
+        status: 'new',
+        attachments: attachments
+      });
 
-        setSubmittedApp(created);
-      } catch (err) {
-        console.error('Error submitting form', err);
-      } finally {
-        setIsSubmitting(false);
-      }
-    }, 600);
+      setSubmittedApp(res.application);
+    } catch (err) {
+      console.error('Error submitting form', err);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (submittedApp) {
@@ -419,17 +439,34 @@ export const ClientIntakeForm: React.FC<Props> = ({ onBackToHome, onNavigateToTr
                 type="file"
                 id="google-form-file-upload"
                 multiple
-                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp"
                 onChange={handleFileUpload}
+                disabled={isUploadingFiles}
                 className="hidden"
               />
               <label 
                 htmlFor="google-form-file-upload" 
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-gray-300 hover:border-[#B8963A] hover:bg-amber-50/50 text-xs sm:text-sm font-semibold text-gray-700 cursor-pointer transition shadow-sm"
+                className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-gray-300 hover:border-[#B8963A] hover:bg-amber-50/50 text-xs sm:text-sm font-semibold text-gray-700 cursor-pointer transition shadow-sm ${isUploadingFiles ? 'opacity-50 pointer-events-none' : ''}`}
               >
-                <Upload className="w-4 h-4 text-[#B8963A]" />
-                <span>+ إضافة ملف أو مستند</span>
+                {isUploadingFiles ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-[#B8963A] border-t-transparent rounded-full animate-spin" />
+                    <span>جاري رفع الملفات إلى السيرفر...</span>
+                  </>
+                ) : (
+                  <>
+                    <Upload className="w-4 h-4 text-[#B8963A]" />
+                    <span>+ إضافة ملف أو مستند</span>
+                  </>
+                )}
               </label>
+
+              {uploadError && (
+                <div className="flex items-center gap-1.5 text-xs text-red-600 mt-2">
+                  <AlertCircle className="w-3.5 h-3.5" />
+                  <span>{uploadError}</span>
+                </div>
+              )}
             </div>
 
             {/* Attached Files List */}

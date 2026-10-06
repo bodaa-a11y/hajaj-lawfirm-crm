@@ -1,9 +1,28 @@
+# Prevent direct access to sensitive data files
+<FilesMatch "\.(sqlite|log|env|json|ini|sh|bak)$">
+    Order deny,allow
+    Deny from all
+</FilesMatch>
+
+# Disable LiteSpeed and browser cache for API calls
+<IfModule mod_headers.c>
+    <LocationMatch "^/api/">
+        Header set Cache-Control "no-cache, no-store, must-revalidate, max-age=0"
+        Header set Pragma "no-cache"
+        Header set Expires "0"
+    </LocationMatch>
+</IfModule>
+
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteBase /
-  RewriteRule ^index\.html$ - [L]
-  RewriteCond %{REQUEST_FILENAME} !-f
-  RewriteCond %{REQUEST_FILENAME} !-d
-  RewriteCond %{REQUEST_FILENAME} !-l
+  
+  # Allow direct access to existing files and directories (including /api/ and /uploads/)
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # Route all SPA requests to index.html
   RewriteRule . /index.html [L]
 </IfModule>
+

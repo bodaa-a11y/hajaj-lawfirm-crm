@@ -24,10 +24,19 @@ $DATA_DIR = __DIR__ . '/data';
 $UPLOADS_DIR = dirname(__DIR__) . '/uploads';
 
 if (!file_exists($DATA_DIR)) {
-    @mkdir($DATA_DIR, 0755, true);
+    @mkdir($DATA_DIR, 0777, true);
 }
 if (!file_exists($UPLOADS_DIR)) {
-    @mkdir($UPLOADS_DIR, 0755, true);
+    @mkdir($UPLOADS_DIR, 0777, true);
+}
+
+// Global API error logger
+function logApiError($message, $context = []) {
+    global $DATA_DIR;
+    $logFile = $DATA_DIR . '/error.log';
+    $time = date('Y-m-d H:i:s');
+    $ctxStr = !empty($context) ? ' | Context: ' . json_encode($context, JSON_UNESCAPED_UNICODE) : '';
+    @file_put_contents($logFile, "[$time] $message$ctxStr\n", FILE_APPEND);
 }
 
 // Check database connection mode

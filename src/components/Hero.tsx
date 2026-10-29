@@ -1,9 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { ArrowLeft, ArrowDown } from 'lucide-react';
+import { ArrowLeft, ArrowDown, BookOpen } from 'lucide-react';
 import { FIRM_DETAILS } from '../data/lawFirmData';
 
-interface HeroProps { onExploreMore: () => void; onOpenConsultation: () => void; }
+interface HeroProps {
+  onExploreMore: () => void;
+  onOpenConsultation: () => void;
+  onOpenProfile?: () => void;
+}
 
 /* ── Typewriter Hook ── */
 function useTypewriter(text: string, speed = 55, startDelay = 800) {
@@ -33,7 +37,7 @@ function useTypewriter(text: string, speed = 55, startDelay = 800) {
   return { displayed, done };
 }
 
-export const Hero: React.FC<HeroProps> = ({ onExploreMore, onOpenConsultation }) => {
+export const Hero: React.FC<HeroProps> = ({ onExploreMore, onOpenConsultation, onOpenProfile }) => {
   const welcomeText = `نرحب بكم في شركة حجاج عبدالرحمن الضويحي للمحاماة والاستشارات القانونية والتوثيق`;
   const { displayed, done } = useTypewriter(welcomeText, 45, 1200);
 
@@ -107,10 +111,19 @@ export const Hero: React.FC<HeroProps> = ({ onExploreMore, onOpenConsultation })
           </button>
           <button
             onClick={onOpenConsultation}
-            className="px-7 py-4 rounded-full border border-white/35 bg-white/5 backdrop-blur-md text-white font-semibold hover:bg-white/10 transition-all"
+            className="px-7 py-4 rounded-full border border-white/35 bg-white/5 backdrop-blur-md text-white font-semibold hover:bg-white/10 transition-all cursor-pointer"
           >
             احجز استشارة قانونية
           </button>
+          {onOpenProfile && (
+            <button
+              onClick={onOpenProfile}
+              className="px-7 py-4 rounded-full border border-[#C9AA67]/50 bg-[#071B23]/70 backdrop-blur-md text-[#E8D39B] font-bold hover:bg-[#C9AA67]/15 hover:border-[#C9AA67] transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg"
+            >
+              <BookOpen className="w-5 h-5 text-[#C9AA67]" />
+              <span>بروفايل الشركة</span>
+            </button>
+          )}
         </motion.div>
       </div>
 

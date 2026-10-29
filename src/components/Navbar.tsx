@@ -10,12 +10,14 @@ import {
   Clock, 
   Lock, 
   Sparkles,
-  ExternalLink 
+  ExternalLink,
+  BookOpen
 } from 'lucide-react';
 
 interface NavbarProps {
   onOpenConsultation: () => void;
   onNavigateTo?: (view: string) => void;
+  onOpenProfile?: () => void;
 }
 
 const items = [
@@ -27,7 +29,7 @@ const items = [
   { id: 'contact', label: 'تواصل معنا' },
 ];
 
-export const Navbar: React.FC<NavbarProps> = ({ onOpenConsultation, onNavigateTo }) => {
+export const Navbar: React.FC<NavbarProps> = ({ onOpenConsultation, onNavigateTo, onOpenProfile }) => {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState('hero');
@@ -117,8 +119,17 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenConsultation, onNavigateTo
           ))}
         </div>
 
-        {/* Direct Appointment CTA Button */}
-        <div className="hidden sm:flex items-center gap-3">
+        {/* Direct Appointment & Profile CTA Buttons */}
+        <div className="hidden sm:flex items-center gap-2.5">
+          {onOpenProfile && (
+            <button
+              onClick={onOpenProfile}
+              className="px-3.5 sm:px-4 py-2 rounded-full border border-[#C9AA67]/40 bg-white/5 hover:bg-[#C9AA67]/15 text-[#E8D39B] text-xs sm:text-sm font-bold transition-all duration-300 cursor-pointer inline-flex items-center gap-1.5"
+            >
+              <BookOpen className="w-3.5 h-3.5 text-[#C9AA67]" />
+              <span>بروفايل الشركة</span>
+            </button>
+          )}
           <button
             onClick={onOpenConsultation}
             className="px-4 sm:px-5 py-2 rounded-full bg-gradient-to-r from-[#B8963A] via-[#C9AA67] to-[#B8963A] text-[#071B23] text-xs sm:text-sm font-bold shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 cursor-pointer inline-flex items-center gap-1.5"
@@ -192,6 +203,19 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenConsultation, onNavigateTo
                 <CalendarCheck className="w-4 h-4" />
                 <span>حجز موعد استشارة فورية</span>
               </button>
+
+              {onOpenProfile && (
+                <button
+                  onClick={() => {
+                    setOpen(false);
+                    onOpenProfile();
+                  }}
+                  className="w-full py-3 rounded-2xl border border-[#C9AA67]/40 bg-white/5 hover:bg-[#C9AA67]/15 text-[#E8D39B] font-bold text-sm flex items-center justify-center gap-2 cursor-pointer transition"
+                >
+                  <BookOpen className="w-4 h-4 text-[#C9AA67]" />
+                  <span>عرض وتحميل بروفايل الشركة (PDF)</span>
+                </button>
+              )}
             </div>
 
             {/* Digital Portal Services inside Mobile Menu */}

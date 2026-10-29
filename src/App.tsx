@@ -12,6 +12,7 @@ import { Footer } from './components/Footer';
 import { FloatingContact } from './components/FloatingContact';
 import { BackToTop } from './components/BackToTop';
 import { ContactModal } from './components/ContactModal';
+import { CompanyProfileModal } from './components/CompanyProfileModal';
 import { Preloader } from './components/Preloader';
 import { LegalService } from './types';
 
@@ -28,7 +29,7 @@ import { TeamView } from './components/crm/TeamView';
 import { SettingsView } from './components/crm/SettingsView';
 import { crmDb } from './services/crmDb';
 import { Application, User } from './types/crm';
-import { FileText, Lock, Clock, Sparkles } from 'lucide-react';
+import { FileText, Lock, Clock, Sparkles, BookOpen } from 'lucide-react';
 
 type ViewMode = 'website' | 'apply' | 'track' | 'dashboard' | 'login';
 
@@ -47,6 +48,9 @@ export default function App() {
   const [isBookingOpen, setIsBookingOpen] = useState(false);
   const [bookingType, setBookingType] = useState<BookingType>('general');
   const [bookingTitle, setBookingTitle] = useState<string>('');
+
+  // Modal State for Company Profile PDF viewer
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
 
   // Determine view from URL path / query param on mount and popstate
   useEffect(() => {
@@ -327,6 +331,16 @@ export default function App() {
 
           <div className="flex items-center gap-3">
             <button
+              onClick={() => setIsProfileOpen(true)}
+              className="inline-flex items-center gap-1 text-[#E8D39B] hover:text-white font-semibold transition cursor-pointer"
+            >
+              <BookOpen className="w-3.5 h-3.5 text-[#C9AA67]" />
+              <span>بروفايل الشركة (PDF)</span>
+            </button>
+
+            <span className="text-gray-600">|</span>
+
+            <button
               onClick={() => navigateTo('apply')}
               className="inline-flex items-center gap-1 text-white hover:text-[#E8D39B] font-semibold transition cursor-pointer"
             >
@@ -373,6 +387,7 @@ export default function App() {
       <Navbar 
         onOpenConsultation={() => handleOpenBooking('general', 'حجز موعد واستشارة قانونية')} 
         onNavigateTo={(view) => navigateTo(view as any)}
+        onOpenProfile={() => setIsProfileOpen(true)}
       />
 
       {/* Main Content Sections */}
@@ -381,6 +396,7 @@ export default function App() {
         <Hero
           onExploreMore={handleExploreMore}
           onOpenConsultation={() => handleOpenBooking('general', 'حجز موعد واستشارة قانونية')}
+          onOpenProfile={() => setIsProfileOpen(true)}
         />
 
         {/* 2. Vision & Mission Section with Animated Stats */}
@@ -422,6 +438,12 @@ export default function App() {
         onClose={() => setIsBookingOpen(false)}
         bookingType={bookingType}
         bookingTitle={bookingTitle}
+      />
+
+      {/* Luxury In-Place Company Profile PDF Modal */}
+      <CompanyProfileModal
+        isOpen={isProfileOpen}
+        onClose={() => setIsProfileOpen(false)}
       />
     </div>
   );

@@ -29,7 +29,6 @@ import { TeamView } from './components/crm/TeamView';
 import { SettingsView } from './components/crm/SettingsView';
 import { crmDb } from './services/crmDb';
 import { Application, User } from './types/crm';
-import { FileText, Lock, Clock, Sparkles, BookOpen } from 'lucide-react';
 
 type ViewMode = 'website' | 'apply' | 'track' | 'dashboard' | 'login';
 
@@ -318,59 +317,6 @@ export default function App() {
   return (
     <div className="relative min-h-screen bg-[#F5F0E8] text-[#171717] selection:bg-[#B8963A]/25 selection:text-[#071B23]">
       
-      {/* Top Banner for CRM & Digital Services (Visible on Desktop / Tablets, cleanly moved to 3-bars menu on Mobile) */}
-      <div className="hidden md:block bg-[#07131b] border-b border-[#c5a880]/30 py-2 px-4 text-xs text-gray-300 relative z-50 font-cairo shadow-md" dir="rtl">
-        <div className="max-w-[1400px] mx-auto flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 text-[#E8D39B] font-bold">
-              <Sparkles className="w-3.5 h-3.5 text-[#C9AA67]" />
-              البوابة الرقمية لشركة حجاج الضويحي للمحاماة:
-            </span>
-            <span className="text-gray-400 hidden sm:inline">نظام الاستقبال الذكي وخدمات الموكلين</span>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setIsProfileOpen(true)}
-              className="inline-flex items-center gap-1 text-[#E8D39B] hover:text-white font-semibold transition cursor-pointer"
-            >
-              <BookOpen className="w-3.5 h-3.5 text-[#C9AA67]" />
-              <span>بروفايل الشركة (PDF)</span>
-            </button>
-
-            <span className="text-gray-600">|</span>
-
-            <button
-              onClick={() => navigateTo('apply')}
-              className="inline-flex items-center gap-1 text-white hover:text-[#E8D39B] font-semibold transition cursor-pointer"
-            >
-              <FileText className="w-3.5 h-3.5 text-[#C9AA67]" />
-              <span>استمارة الاستشارة الفورية</span>
-            </button>
-
-            <span className="text-gray-600">|</span>
-
-            <button
-              onClick={() => navigateTo('track')}
-              className="inline-flex items-center gap-1 text-white hover:text-[#E8D39B] font-semibold transition cursor-pointer"
-            >
-              <Clock className="w-3.5 h-3.5 text-[#C9AA67]" />
-              <span>تتبع حالة الطلب</span>
-            </button>
-
-            <span className="text-gray-600">|</span>
-
-            <button
-              onClick={() => navigateTo('dashboard')}
-              className="inline-flex items-center gap-1 text-[#E8D39B] hover:text-white font-bold bg-[#14232e] px-2.5 py-1 rounded-md border border-[#c5a880]/30 transition cursor-pointer"
-            >
-              <Lock className="w-3.5 h-3.5" />
-              <span>لوحة الإدارة CRM</span>
-            </button>
-          </div>
-        </div>
-      </div>
-
       {/* Luxury Loading Splash Screen */}
       <Preloader onComplete={() => {
         if (window.location.hash) {
